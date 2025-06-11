@@ -6,24 +6,26 @@ _logger = logging.getLogger(__name__)
 class ExeUpdateFact(models.Model):
     _inherit = 'sale.order'
 
-    mrp = fields.Char(string='Production Order Asociated', compute='_compute_mrp_associated', store=True)
+    def action_confirm(self):
+        """Sobreescribe la acción de confirmación de la orden de venta, asegurando que todas las producciones asociadas cambien de estado."""
+        _logger.info("Confirmando orden de venta: %s", self.name)
 
-    @api.depends('name', 'state')
-    def _compute_mrp_associated(self):
+        # Primero, ejecutamos la lógica original de Odoo
+        res = super(ExeUpdateFact, self).action_confirm()
+
+        # Buscar todas las órdenes de producción asociadas a la orden de venta
         for order in self:
-            _logger.info("Buscando producción asociada para la orden de venta: %s", order.name)
+            productions = self.env['mrp.production'].search([('origin', 'like', f"%{order.name}%")])
 
-            # Buscar la producción cuya 'origin' contiene el nombre de la orden de venta
-            production = self.env['mrp.production'].search([('origin', 'like', f"%{order.name}%")], limit=1)
-
-            if production:
-                order.mrp = production.name
-                _logger.info("Producción encontrada: %s | Origin: %s", production.name, production.origin)
-
-                # Si el estado de la orden de venta cambia a 'sale', actualizar producción a 'done'
-                if order.state == 'sale' and production.state != 'done':
-                    production.write({"state": "done"})
-                    _logger.info("Producción ID: %s actualizada a 'done'", production.id)
+            if productions:
+                _logger.info("Producciones asociadas encontradas: %s", productions.mapped("name"))
+                
+                for production in productions:
+                    # Cambiar el estado de todas las producciones a "done" si aún no están completadas
+                    if production.state != 'done':
+                        production.write({"state": "done"})
+                        _logger.info("Producción ID: %s actualizada a 'done'", production.id)
             else:
-                order.mrp = ""
-                _logger.warning("No se encontró producción asociada para la orden: %s", order.name)
+                _logger.warning("No se encontraron producciones asociadas para la orden: %s", order.name)
+
+        return res
