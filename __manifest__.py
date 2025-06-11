@@ -4,7 +4,7 @@
     'category': 'Tools',
     'author':'Mauro Bogado',
     'summary': 'Herramienta para actualizar estado de orden de produccion al realizar actualizacion de estado de orden de venta',
-    'depends': ['base'],
+    'depends': ['base','sale'],
     'data': [
         #'security/ir.model.access.csv',
         #'views/debug_tool_views.xml',
